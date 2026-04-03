@@ -11,15 +11,17 @@ Pod=soc-elastic.pod
 # ── Non-sensitive config ─────────────────────────────────────────────────────
 # Containers in the same pod share a network namespace — use localhost
 Environment=ELASTICSEARCH_HOSTS=http://localhost:9200
-Environment=ELASTICSEARCH_USERNAME=elastic
 Environment=SERVER_NAME=kibana
 Environment=SERVER_HOST=0.0.0.0
 
 # ── Secrets ──────────────────────────────────────────────────────────────────
-# elastic_password is reused here — same value, different target env var name.
+# kibana_service_token is a dedicated service account token created via:
+#   curl -X POST -u elastic:PASSWORD \
+#     http://localhost:9200/_security/service/elastic/kibana/credential/token/kibana_token
+# Required in ES 8.x — the elastic superuser cannot be used for Kibana auth.
 # The three encryption keys protect saved Kibana objects (dashboards, alerts).
 # Back these up — losing them makes saved objects unreadable.
-Secret=elastic_password,type=env,target=ELASTICSEARCH_PASSWORD
+Secret=kibana_service_token,type=env,target=ELASTICSEARCH_SERVICEACCOUNTTOKEN
 Secret=kibana_enc_key1,type=env,target=XPACK_SECURITY_ENCRYPTIONKEY
 Secret=kibana_enc_key2,type=env,target=XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
 Secret=kibana_enc_key3,type=env,target=XPACK_REPORTING_ENCRYPTIONKEY

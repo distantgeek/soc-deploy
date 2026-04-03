@@ -38,14 +38,14 @@ prompt_password() {
   local password confirm
 
   while true; do
-    read -rsp "  ${prompt}: " password; echo ""
-    read -rsp "  Confirm:  " confirm;  echo ""
+    read -rsp "  ${prompt}: " password; echo "" >&2
+    read -rsp "  Confirm:  " confirm;  echo "" >&2
 
     if [[ "$password" != "$confirm" ]]; then
-      echo "  Passwords do not match. Try again."; continue
+      echo "  Passwords do not match. Try again." >&2; continue
     fi
     if [[ ${#password} -lt 12 ]]; then
-      echo "  Must be at least 12 characters. Try again."; continue
+      echo "  Must be at least 12 characters. Try again." >&2; continue
     fi
     break
   done
@@ -57,7 +57,6 @@ prompt_password() {
 
 generate_key() {
   openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 32
-  echo ""
 }
 
 # ── Step 1: Podman secrets ───────────────────────────────────────────────────
@@ -65,11 +64,11 @@ generate_key() {
 echo "==> [1/4] Creating Podman secrets..."
 echo ""
 echo "  The elastic_password becomes the 'elastic' superuser password."
-echo "  It is used by both Elasticsearch and Kibana."
+echo "  Used for Elasticsearch authentication and admin access."
 echo ""
 
 # Remove existing secrets if present (allows redeployment / rotation)
-for secret in elastic_password kibana_enc_key1 kibana_enc_key2 kibana_enc_key3; do
+for secret in elastic_password kibana_service_token kibana_enc_key1 kibana_enc_key2 kibana_enc_key3; do
   if podman secret inspect "$secret" &>/dev/null; then
     podman secret rm "$secret" > /dev/null
     echo "  Removed existing secret: $secret"
@@ -90,9 +89,9 @@ printf '%s' "$(generate_key)" | podman secret create kibana_enc_key3 -
 echo "    Created secret: kibana_enc_key3"
 
 echo ""
-echo "  IMPORTANT: Podman secrets are stored in:"
-echo "  /var/lib/containers/storage/secrets/"
-echo "  Back this directory up securely — losing it means re-running this script."
+echo "  NOTE: The kibana_service_token secret is created separately after"
+echo "  Elasticsearch is running. See post-start instructions at the end"
+echo "  of this script."
 echo ""
 
 # ── Step 2: Kernel parameters ────────────────────────────────────────────────
@@ -141,17 +140,35 @@ echo ""
 echo "==================================="
 echo "Deployment complete."
 echo ""
-echo "Start the stack:"
+echo "IMPORTANT: Podman secrets are stored in:"
+echo "/var/lib/containers/storage/secrets/"
+echo "Back this directory up securely."
 echo ""
-echo "    systemctl start soc-elasticsearch.service soc-kibana.service"
+echo "── Step A: Start Elasticsearch first ───────────────────────────────────"
 echo ""
-echo "Verify (wait ~2 minutes after start):"
+echo "    systemctl start soc-elasticsearch.service"
+echo ""
+echo "── Step B: Create the Kibana service account token ─────────────────────"
+echo ""
+echo "Wait ~2 minutes for ES to initialize, then run:"
+echo ""
+echo "    curl -X POST -u elastic:YOURPASSWORD \\"
+echo "      http://localhost:9200/_security/service/elastic/kibana/credential/token/kibana_token"
+echo ""
+echo "Copy the 'value' field from the response, then create the Podman secret:"
+echo ""
+echo "    printf '%s' 'TOKENVALUE' | podman secret create kibana_service_token -"
+echo ""
+echo "── Step C: Start Kibana ─────────────────────────────────────────────────"
+echo ""
+echo "    systemctl start soc-kibana.service"
+echo ""
+echo "── Step D: Verify ───────────────────────────────────────────────────────"
 echo ""
 echo "    systemctl status soc-elasticsearch.service soc-kibana.service"
 echo "    podman pod ps"
-echo "    curl -u elastic:YOURPASSWORD http://localhost:9200"
 echo ""
-echo "Kibana:"
+echo "Kibana UI:"
 echo ""
 echo "    http://$(hostname -I | awk '{print $1}'):5601"
 echo "    Login: elastic / <your password>"

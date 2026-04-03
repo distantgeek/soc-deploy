@@ -1,0 +1,40 @@
+[Unit]
+Description=Elasticsearch (SOC stack)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+ContainerName=elasticsearch
+Pod=soc-elastic.pod
+
+# ── Non-sensitive config ─────────────────────────────────────────────────────
+Environment=ES_JAVA_OPTS=-Xms2g -Xmx2g
+Environment=discovery.type=single-node
+Environment=cluster.name=soc-cluster
+Environment=node.name=soc-node-01
+Environment=xpack.security.enabled=true
+Environment=xpack.security.http.ssl.enabled=false
+Environment=xpack.security.transport.ssl.enabled=false
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# Podman injects these directly into the container environment at start.
+# Secret values never appear in unit files or on disk in plaintext.
+# Created by deploy.sh via: printf 'value' | podman secret create name -
+Secret=elastic_password,type=env,target=ELASTIC_PASSWORD
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+Volume=/opt/soc/elasticsearch/data:/usr/share/elasticsearch/data:Z
+Volume=/opt/soc/elasticsearch/logs:/usr/share/elasticsearch/logs:Z
+
+# ── Resource limits ──────────────────────────────────────────────────────────
+# Bump ES_JAVA_OPTS and Memory together when you add more RAM to this VM.
+# Never set Xmx above 31g (compressed OOPs limit) or 50% of system RAM.
+Memory=3g
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target default.target

@@ -1,0 +1,13 @@
+[Pod]
+PodName=elastic
+Network=soc-net.network
+
+# Elasticsearch: loopback only — other pods reach it by container name via soc-net
+# Host-networked pods (sensors) reach it via 127.0.0.1:9200
+PublishPort=127.0.0.1:9200:9200
+
+# Kibana: accessible from LAN
+PublishPort=5601:5601
+
+[Install]
+WantedBy=multi-user.target default.target

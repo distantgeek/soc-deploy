@@ -1,0 +1,6 @@
+#Never Commit secrets or credential files
+*.env
+*.secret
+secrets/
+credentials/
+.DS_Store

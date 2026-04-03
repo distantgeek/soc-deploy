@@ -1,0 +1,38 @@
+[Unit]
+Description=Kibana (SOC stack)
+After=network-online.target soc-elasticsearch.service
+Wants=network-online.target
+
+[Container]
+Image=docker.elastic.co/kibana/kibana:8.13.4
+ContainerName=kibana
+Pod=soc-elastic.pod
+
+# ── Non-sensitive config ─────────────────────────────────────────────────────
+# Containers in the same pod share a network namespace — use localhost
+Environment=ELASTICSEARCH_HOSTS=http://localhost:9200
+Environment=ELASTICSEARCH_USERNAME=elastic
+Environment=SERVER_NAME=kibana
+Environment=SERVER_HOST=0.0.0.0
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+# elastic_password is reused here — same value, different target env var name.
+# The three encryption keys protect saved Kibana objects (dashboards, alerts).
+# Back these up — losing them makes saved objects unreadable.
+Secret=elastic_password,type=env,target=ELASTICSEARCH_PASSWORD
+Secret=kibana_enc_key1,type=env,target=XPACK_SECURITY_ENCRYPTIONKEY
+Secret=kibana_enc_key2,type=env,target=XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+Secret=kibana_enc_key3,type=env,target=XPACK_REPORTING_ENCRYPTIONKEY
+
+# ── Volumes ──────────────────────────────────────────────────────────────────
+Volume=/opt/soc/kibana/data:/usr/share/kibana/data:Z
+
+# ── Resource limits ──────────────────────────────────────────────────────────
+Memory=1g
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target default.target

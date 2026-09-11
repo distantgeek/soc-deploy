@@ -24,37 +24,47 @@ The real constraint is bandwidth, not load: the sniffing NIC must absorb the agg
 
 The ASUS AiMesh routers (GS-AX5400 + RT-AC68U) are consumer gear — **no SPAN/port mirroring**. The mirror must happen outside them.
 
-### Recommended: passive TAP at the WAN edge
+### Chosen: Netgear managed switch inline on the upstairs backhaul link
 
-Place a passive copper TAP inline between the modem and the GS-AX5400 WAN port. A passive TAP is a wire splitter: it passes traffic with zero added latency, is fail-open (the link survives even unpowered), and physically cannot bottleneck the link. Two ports feed the R820 sniffing NIC (one per direction).
+The network splits across two floors:
 
-- Captures all internet traffic in both directions — the highest-value visibility for a homelab SOC (C2, phishing, exfiltration).
-- Does NOT see LAN-to-LAN traffic between your devices (that needs a managed LAN switch — later).
-- Cost: ~$30–80.
+```
+Basement:  Cable Modem ── GS-AX5400 (main router)
+Upstairs:  RT-AC68U (AiMesh node) ◄── R820 + all other endpoints
+           (RT-AC68U ↔ GS-AX5400 = 1 Gbps Ethernet backhaul)
+```
 
-### Alternative: managed switch with port mirroring
+All upstairs traffic (internet + cross-node) crosses the backhaul link. Put the Netgear managed switch **inline on that link** and mirror it to the sniffing port:
 
-A cheap gigabit managed switch (TP-Link/Netgear/MikroTik, ~$30–50) between modem and router, mirroring the router-facing port to the sniffing port. More flexible than a TAP (can later mirror LAN ports too), but it sits in the data path — a gigabit switch won't bottleneck a 1 Gbps link, but it is one more inline device.
+```
+RT-AC68U backhaul ── port 1 ── [Netgear switch] ── port 2 ── GS-AX5400
+                              port 3 (mirror) ── R820 nic1 (sniffing)
+```
+
+- Configure port mirroring: mirror port 1 (and/or 2) to port 3.
+- Captures all traffic between the upstairs node and the rest of the network — internet in both directions plus cross-node LAN traffic. This includes the R820 itself.
+- Does NOT capture same-node LAN-to-LAN traffic (endpoint A → endpoint B, both on the RT-AC68U, stays local and never crosses the backhaul). Internet traffic is the high-value visibility anyway.
+- The switch must be **inline** on the backhaul link — a passive side-attachment sees nothing.
 
 ### Free fallback: Proxmox bridge mirroring (start now)
 
-To get SO running today with zero hardware: mirror the Proxmox bridge (OVS or `tc mirred`) to the SO VM's sniffing vNIC. Captures only VM-to-VM traffic on the host — no physical devices, no WAN. Good for learning the platform while the TAP/switch ships.
+To get SO running today while the switch is located/wired: mirror the Proxmox bridge (OVS or `tc mirred`) to the SO VM's sniffing vNIC. Captures only VM-to-VM traffic on the host — no physical devices. Good for learning the platform.
 
 ## Prerequisites
 
-- [ ] Confirm the modem→GS-AX5400 link is copper Ethernet and physically accessible (not a combo modem/router with an internal WAN).
-- [ ] Identify a spare physical NIC/port on the R820 for sniffing.
-- [ ] Confirm the R820 has 16–24 GB RAM and 200 GB+ free disk for the SO VM.
-- [ ] Purchase the TAP (or managed switch) if going the WAN-edge route.
+- [ ] Locate the Netgear managed switch; confirm it supports port mirroring (Netgear "Plus" switches do).
+- [ ] Confirm the RT-AC68U backhaul port and the GS-AX5400 port are accessible for the inline switch.
+- [ ] R820 free port for sniffing: `nic1`/`nic2`/`nic3` are all free (confirmed via API — only `nic0` is used by vmbr0).
+- [ ] R820 resources: 6.1 TB free on `garage-0` (confirmed via API); only one small VM running. RAM/CPU headroom is ample for the SO VM.
 
 ## Proxmox VM setup
 
-### Dedicated sniffing NIC: bridge vs passthrough
+### Dedicated sniffing port: bridge on the existing quad-port NIC
 
-A dedicated physical NIC is strongly preferred over a shared/virtual one — it isolates promiscuous mode and offload changes from all other traffic and avoids the virtio capture-loss quirks seen with virtual NIC sniffing.
+The R820 has a single 4-port NIC (`enp1s0f0-3`). `nic0` carries management (vmbr0); `nic1`/`nic2`/`nic3` are free. Dedicate one free port to sniffing via a dedicated bridge:
 
-- **Dedicated bridge (recommended):** create `vmbrX` bound to the spare physical port; attach the SO VM's second vNIC to it. Simple, no IOMMU setup.
-- **PCIe passthrough (alternative):** pass the whole NIC through to the SO VM. Cleanest isolation and lowest overhead, but needs VT-d enabled and the NIC in its own IOMMU group (multi-port NICs often group all ports — check before committing).
+- Create `vmbrX` bound to one free port (e.g., `nic1`); attach the SO VM's second vNIC to it. Simple, no IOMMU setup.
+- **PCIe passthrough is NOT viable here** — passing the NIC through would take all 4 ports, including management. The dedicated bridge is the right call.
 
 ### VM creation settings
 
@@ -67,7 +77,7 @@ A dedicated physical NIC is strongly preferred over a shared/virtual one — it 
 | Disk | 200 GB+ |
 | Display | `VMware compatible (vmware)` — needed for NetworkMiner/Mono apps |
 | NIC 1 (management) | virtio on `vmbr0` |
-| NIC 2 (sniffing) | virtio on `vmbrX` (or passthrough) |
+| NIC 2 (sniffing) | virtio on `vmbrX` (dedicated bridge on `nic1`) |
 
 ## Proxmox host config
 
@@ -77,13 +87,13 @@ Disable NIC offloading on the sniffing interface (post-up in `/etc/network/inter
 auto vmbrX
 iface vmbrX inet static
     address 10.89.0.X/24
-    bridge-ports enoX
+    bridge-ports nic1
     bridge-stp off
     bridge-fd 0
-    post-up ethtool -K enoX gro off gso off tso off
-    post-up ethtool -K enoX rx off tx off
-    post-up ethtool -K enoX rxvlan off txvlan off
-    post-up ethtool -K enoX ntuple off
+    post-up ethtool -K nic1 gro off gso off tso off
+    post-up ethtool -K nic1 rx off tx off
+    post-up ethtool -K nic1 rxvlan off txvlan off
+    post-up ethtool -K nic1 ntuple off
 ```
 
 (Proxmox 9 + virtual-NIC sniffing additionally requires `mtu 9000` on the physical sniffing NIC and bridge; with a dedicated physical NIC this is not needed.)
@@ -94,7 +104,7 @@ iface vmbrX inet static
 2. Install Oracle Linux + Security Onion per the installer.
 3. Run the setup wizard:
    - Management interface = NIC 1 (vmbr0)
-   - Monitoring interface = NIC 2 (vmbrX / passthrough)
+   - Monitoring interface = NIC 2 (vmbrX)
    - Analyst account, hostname, timezone
 4. Reboot; confirm services start (`so-status`).
 
@@ -109,7 +119,7 @@ iface vmbrX inet static
 
 ## Wiring order
 
-1. TAP/switch inline between modem and GS-AX5400 → sniffing NIC on R820.
-2. Proxmox: create `vmbrX`, disable offloads.
+1. Netgear switch inline on the RT-AC68U ↔ GS-AX5400 backhaul; mirror backhaul port(s) to the sniffing port → R820 `nic1`.
+2. Proxmox: create `vmbrX` on `nic1`, disable offloads.
 3. Create SO VM (settings above), install SO, run wizard.
 4. Verify per checklist.

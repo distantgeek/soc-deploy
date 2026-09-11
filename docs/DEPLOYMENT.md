@@ -23,7 +23,7 @@ Security Onion runs in its own VM — it is an appliance, not a Quadlet stack. T
 ## Network layout
 
 - **Management network:** analyst access to SOC console, IRIS, IntelOwl, MISP, Shuffle. Never exposed to the internet.
-- **Monitoring interface (Security Onion):** passive TAP (or managed-switch mirror) at the WAN edge between the modem and the ASUS GS-AX5400, feeding a dedicated sniffing NIC on the R820. Out-of-band copy — never inline. See [docs/PHASE0.md](docs/PHASE0.md).
+- **Monitoring interface (Security Onion):** Netgear managed switch inline on the AiMesh backhaul link (RT-AC68U ↔ GS-AX5400), mirroring to a dedicated sniffing port on the R820's quad-port NIC. Out-of-band copy — never inline to endpoints. See [docs/PHASE0.md](docs/PHASE0.md).
 - **`soc-net` bridge (10.89.1.0/24):** existing Quadlet network from Phase 1; reused for the external platform layer containers on `soc-host`.
 
 ## Integration wiring order

@@ -97,5 +97,5 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 | 2026-09 | IDS (passive) first; inline IPS deferred | "Lots of setup before expanding" — IPS is Phase 4 |
 | 2026-09 | Single detection engine (Wazuh/SO); ELK as log store only | Avoid duplicate alerting; ELK adds value for search/dissection |
 | 2026-09 | DLP + Application Control added as Phase 5 (long-term) | Trellix DLP/App Control equivalents; no maintained purpose-built OSS exists, so compose from existing stack |
-| 2026-09 | Passive WAN-edge monitoring via TAP/mirror; not inline | ASUS AiMesh has no SPAN; passive copy is out-of-band so it cannot bottleneck endpoints (unlike inline pihole DNS) |
-| 2026-09 | Dedicated physical sniffing NIC on the R820 | Isolates promiscuous sniffing + offload changes from management traffic; avoids virtio capture-loss quirks |
+| 2026-09 | Managed switch inline on the AiMesh backhaul link (RT-AC68U ↔ GS-AX5400), mirroring to a dedicated sniffing port | ASUS AiMesh has no SPAN; the backhaul is the choke point for all upstairs traffic; monitoring stays out-of-band for endpoints |
+| 2026-09 | Dedicated sniffing port on the R820's quad-port NIC via a dedicated bridge (vmbrX) | Isolates promiscuous sniffing + offload changes from management; PCIe passthrough would take all 4 ports including management |

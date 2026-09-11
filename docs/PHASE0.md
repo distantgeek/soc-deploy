@@ -46,13 +46,23 @@ RT-AC68U backhaul ── port 1 ── [Netgear switch] ── port 2 ── GS-
 - Does NOT capture same-node LAN-to-LAN traffic (endpoint A → endpoint B, both on the RT-AC68U, stays local and never crosses the backhaul). Internet traffic is the high-value visibility anyway.
 - The switch must be **inline** on the backhaul link — a passive side-attachment sees nothing.
 
+### Switch config (NetGear GS305E)
+
+The GS305E is a 5-port Gigabit "Plus" managed switch — it supports port mirroring via its web UI. Only 3 of its 5 ports are needed.
+
+- **Unmanaged by default:** wired inline it behaves as a plain switch, so the network works before any config. Mirroring is the only step needed.
+- **Factory reset (recommended after shelving):** hold the reset button ~10 s until the power LED blinks. Clears any stale config.
+- **Access the web UI:** the switch is DHCP by default (older firmware: 192.168.0.239). Find its IP in the GS-AX5400 DHCP client list, or try 192.168.0.239. Login: `admin` / blank password (some firmware: `password`).
+- **Enable port mirroring:** System > Monitoring > Port Mirroring (path varies by firmware). Source = the port facing the RT-AC68U (and/or the GS-AX5400); destination = the port wired to R820 `nic1`. Both directions are mirrored.
+- **Caveat:** the mirror destination port cannot carry normal traffic while mirroring is active — that's fine, it is dedicated to sniffing.
+
 ### Free fallback: Proxmox bridge mirroring (start now)
 
 To get SO running today while the switch is located/wired: mirror the Proxmox bridge (OVS or `tc mirred`) to the SO VM's sniffing vNIC. Captures only VM-to-VM traffic on the host — no physical devices. Good for learning the platform.
 
 ## Prerequisites
 
-- [ ] Locate the Netgear managed switch; confirm it supports port mirroring (Netgear "Plus" switches do).
+- [ ] NetGear GS305E located (5-port Plus switch, supports port mirroring). Factory reset + configure via web UI.
 - [ ] Confirm the RT-AC68U backhaul port and the GS-AX5400 port are accessible for the inline switch.
 - [ ] R820 free port for sniffing: `nic1`/`nic2`/`nic3` are all free (confirmed via API — only `nic0` is used by vmbr0).
 - [ ] R820 resources: 6.1 TB free on `garage-0` (confirmed via API); only one small VM running. RAM/CPU headroom is ample for the SO VM.

@@ -6,10 +6,13 @@ Phased build plan for the SOC platform. Each phase has a goal, the components it
 
 **Goal:** Stand up the core detection platform and prove the network is being monitored.
 
-- Install Security Onion 3.3.0 in its own VM (Oracle Linux-based appliance).
+- Install Security Onion 3.3.0 in its own VM (Oracle Linux-based appliance) on Proxmox.
+- Feed it a passive copy of WAN-edge traffic via a TAP (or managed-switch mirror); dedicated sniffing NIC on the R820.
 - Configure management + monitoring interfaces, analyst account, and SOC console.
 - Verify Suricata IDS, Zeek, and PCAP are ingesting traffic.
 - Confirm Elasticsearch is healthy and the SOC console dashboards populate.
+
+Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 
 **Exit criteria:** SOC console shows live alerts and Zeek logs; PCAP capture works; analyst can search logs in the console.
 
@@ -94,3 +97,5 @@ Phased build plan for the SOC platform. Each phase has a goal, the components it
 | 2026-09 | IDS (passive) first; inline IPS deferred | "Lots of setup before expanding" — IPS is Phase 4 |
 | 2026-09 | Single detection engine (Wazuh/SO); ELK as log store only | Avoid duplicate alerting; ELK adds value for search/dissection |
 | 2026-09 | DLP + Application Control added as Phase 5 (long-term) | Trellix DLP/App Control equivalents; no maintained purpose-built OSS exists, so compose from existing stack |
+| 2026-09 | Passive WAN-edge monitoring via TAP/mirror; not inline | ASUS AiMesh has no SPAN; passive copy is out-of-band so it cannot bottleneck endpoints (unlike inline pihole DNS) |
+| 2026-09 | Dedicated physical sniffing NIC on the R820 | Isolates promiscuous sniffing + offload changes from management traffic; avoids virtio capture-loss quirks |

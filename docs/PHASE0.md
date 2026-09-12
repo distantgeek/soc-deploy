@@ -51,9 +51,13 @@ RT-AC68U backhaul ── port 1 ── [Netgear switch] ── port 2 ── GS-
 The GS305E is a 5-port Gigabit "Plus" managed switch — it supports port mirroring via its web UI. Only 3 of its 5 ports are needed.
 
 - **Unmanaged by default:** wired inline it behaves as a plain switch, so the network works before any config. Mirroring is the only step needed.
+- **Discovered:** 192.168.2.122 (DHCP on the LAN).
+- **Port assignment:** Port 1 = RT-AC68U backhaul (mirror source), Port 2 = GS-AX5400, Port 3 = R820 `nic1` (mirror destination).
+- **Mirror source:** mirror Port 1 only (both directions) — Port 2 carries the same link in reverse, so mirroring both would duplicate.
 - **Factory reset (recommended after shelving):** hold the reset button ~10 s until the power LED blinks. Clears any stale config.
-- **Access the web UI:** the switch is DHCP by default (older firmware: 192.168.0.239). Find its IP in the GS-AX5400 DHCP client list, or try 192.168.0.239. Login: `admin` / blank password (some firmware: `password`).
-- **Enable port mirroring:** System > Monitoring > Port Mirroring (path varies by firmware). Source = the port facing the RT-AC68U (and/or the GS-AX5400); destination = the port wired to R820 `nic1`. Both directions are mirrored.
+- **Access the web UI:** http://192.168.2.122. Login: `admin` / blank password (some firmware: `password`).
+- **Enable port mirroring:** System > Monitoring > Port Mirroring (path varies by firmware). Destination = Port 3; source = Port 1. Both directions are mirrored.
+- **Verify before building the VM:** on the Proxmox host, `tcpdump -i nic1` should show mirrored traffic.
 - **Caveat:** the mirror destination port cannot carry normal traffic while mirroring is active — that's fine, it is dedicated to sniffing.
 
 ### Free fallback: Proxmox bridge mirroring (start now)

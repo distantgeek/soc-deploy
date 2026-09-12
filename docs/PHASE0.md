@@ -57,7 +57,7 @@ The GS305E is a 5-port Gigabit "Plus" managed switch — it supports port mirror
 - **Factory reset (recommended after shelving):** hold the reset button ~10 s until the power LED blinks. Clears any stale config.
 - **Access the web UI:** http://192.168.2.122. Login: `admin` / blank password (some firmware: `password`).
 - **Enable port mirroring:** System > Monitoring > Port Mirroring (path varies by firmware). Destination = Port 3; source = Port 1. Both directions are mirrored.
-- **Verify before building the VM:** on the Proxmox host, `tcpdump -i nic1` should show mirrored traffic.
+- **Verify before building the VM:** on the Proxmox host, `tcpdump -i nic1` should show mirrored traffic. **Status: VERIFIED 2026-09-12** — nic1 up at 1000Mb/s full duplex, RX counters incrementing, capture shows internet + LAN + STP traffic (GS-AX5400 bridge-id present, confirming inline backhaul).
 - **Caveat:** the mirror destination port cannot carry normal traffic while mirroring is active — that's fine, it is dedicated to sniffing.
 
 ### Free fallback: Proxmox bridge mirroring (start now)

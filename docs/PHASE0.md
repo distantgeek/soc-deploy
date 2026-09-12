@@ -77,7 +77,7 @@ To get SO running today while the switch is located/wired: mirror the Proxmox br
 
 The R820 has a single 4-port NIC (`enp1s0f0-3`). `nic0` carries management (vmbr0); `nic1`/`nic2`/`nic3` are free. Dedicate one free port to sniffing via a dedicated bridge:
 
-- Create `vmbrX` bound to one free port (e.g., `nic1`); attach the SO VM's second vNIC to it. Simple, no IOMMU setup.
+- Create `vmbr1` bound to one free port (`nic1`); attach the SO VM's second vNIC to it. Simple, no IOMMU setup. **Status: DONE 2026-09-12** — see [TECH-BRIEF-PHASE0.md](TECH-BRIEF-PHASE0.md).
 - **PCIe passthrough is NOT viable here** — passing the NIC through would take all 4 ports, including management. The dedicated bridge is the right call.
 
 ### VM creation settings
@@ -91,24 +91,25 @@ The R820 has a single 4-port NIC (`enp1s0f0-3`). `nic0` carries management (vmbr
 | Disk | 200 GB+ |
 | Display | `VMware compatible (vmware)` — needed for NetworkMiner/Mono apps |
 | NIC 1 (management) | virtio on `vmbr0` |
-| NIC 2 (sniffing) | virtio on `vmbrX` (dedicated bridge on `nic1`) |
+| NIC 2 (sniffing) | virtio on `vmbr1` (dedicated bridge on `nic1`) |
 
 ## Proxmox host config
 
 Disable NIC offloading on the sniffing interface (post-up in `/etc/network/interfaces` on the Proxmox host):
 
 ```
-auto vmbrX
-iface vmbrX inet static
-    address 10.89.0.X/24
-    bridge-ports nic1
-    bridge-stp off
-    bridge-fd 0
-    post-up ethtool -K nic1 gro off gso off tso off
-    post-up ethtool -K nic1 rx off tx off
-    post-up ethtool -K nic1 rxvlan off txvlan off
-    post-up ethtool -K nic1 ntuple off
+auto vmbr1
+iface vmbr1 inet manual
+	bridge-ports nic1
+	bridge-stp off
+	bridge-fd 0
+	post-up ethtool -K nic1 gro off gso off tso off
+	post-up ethtool -K nic1 rx off tx off
+	post-up ethtool -K nic1 rxvlan off txvlan off
+	post-up ethtool -K nic1 ntuple off
 ```
+
+Applied and verified 2026-09-12 (`ifreload -a`; bridge UP, offloads off, RX counters incrementing). Full commands in [TECH-BRIEF-PHASE0.md](TECH-BRIEF-PHASE0.md).
 
 (Proxmox 9 + virtual-NIC sniffing additionally requires `mtu 9000` on the physical sniffing NIC and bridge; with a dedicated physical NIC this is not needed.)
 
@@ -133,7 +134,7 @@ iface vmbrX inet static
 
 ## Wiring order
 
-1. Netgear switch inline on the RT-AC68U ↔ GS-AX5400 backhaul; mirror backhaul port(s) to the sniffing port → R820 `nic1`.
-2. Proxmox: create `vmbrX` on `nic1`, disable offloads.
-3. Create SO VM (settings above), install SO, run wizard.
-4. Verify per checklist.
+1. Netgear switch inline on the RT-AC68U ↔ GS-AX5400 backhaul; mirror backhaul port(s) to the sniffing port → R820 `nic1`. **DONE**
+2. Proxmox: create `vmbr1` on `nic1`, disable offloads. **DONE**
+3. Create SO VM (settings above), install SO, run wizard. **PENDING**
+4. Verify per checklist. **PENDING**

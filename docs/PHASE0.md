@@ -136,5 +136,5 @@ Applied and verified 2026-09-12 (`ifreload -a`; bridge UP, offloads off, RX coun
 
 1. Netgear switch inline on the RT-AC68U ↔ GS-AX5400 backhaul; mirror backhaul port(s) to the sniffing port → R820 `nic1`. **DONE**
 2. Proxmox: create `vmbr1` on `nic1`, disable offloads. **DONE**
-3. Create SO VM (settings above), install SO, run wizard. **PENDING**
+3. Create SO VM (settings above), install SO, run wizard. **VM CREATED (300); install pending**
 4. Verify per checklist. **PENDING**

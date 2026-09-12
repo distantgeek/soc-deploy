@@ -74,7 +74,7 @@ ethtool -k nic1 | grep -E 'generic-receive-offload|generic-segmentation-offload|
 ip -s link show vmbr1       # RX counters incrementing (mirror feed live)
 ```
 
-## 3. Security Onion VM creation (pending)
+## 3. Security Onion VM creation (DONE 2026-09-12)
 
 ### 3.1 Settings
 
@@ -89,20 +89,31 @@ ip -s link show vmbr1       # RX counters incrementing (mirror feed live)
 | VGA | `vmware` (needed for NetworkMiner/Mono apps) |
 | NIC 1 (management) | virtio, bridge `vmbr0` |
 | NIC 2 (sniffing) | virtio, bridge `vmbr1` |
+| Boot order | `ide2;scsi0` (CD first, then disk) |
 
-### 3.2 Planned `qm` commands
+### 3.2 Commands used
 
 ```bash
-# Upload ISO first (scp to /var/lib/vz/template/iso/ or via web UI)
+# Upload ISO (14 GB, ~2-3 min on gigabit LAN)
+scp -i ~/.ssh/id_ed25519_pve_opencode \
+  /home/kevbot/Downloads/securityonion-3.3.0-20260911.iso \
+  root@192.168.2.2:/var/lib/vz/template/iso/
+
+# Verify checksum on host (matches official 0938c73b76ce30ec9e4394d312c79ea7cac721b6818541697279a6221f7d870d)
+sha256sum /var/lib/vz/template/iso/securityonion-3.3.0-20260911.iso
+
+# Create VM — NOTE: quote the boot order; the semicolon is a shell separator
 qm create 300 --name soc-onion --ostype l26 \
   --cpu host --cores 8 --memory 16384 \
   --scsi0 garage-0:200 \
   --vga vmware \
   --net0 virtio,bridge=vmbr0 \
   --net1 virtio,bridge=vmbr1 \
-  --ide2 local:iso/securityonion-3.3.0.iso,media=cdrom \
-  --boot order=ide2;scsi0
+  --ide2 local:iso/securityonion-3.3.0-20260911.iso,media=cdrom \
+  --boot 'order=ide2;scsi0'
 ```
+
+Gotcha: an unquoted `--boot order=ide2;scsi0` truncates at the semicolon (shell separator) and silently sets `order=ide2` only. Fix with `qm set 300 --boot 'order=ide2;scsi0'`.
 
 ## 4. Security Onion install (pending)
 

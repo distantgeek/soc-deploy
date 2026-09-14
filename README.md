@@ -56,8 +56,14 @@ soc-elastic.pod                Pod: ES loopback 127.0.0.1:9200, Kibana 5601
 soc-elasticsearch.container    ES 8.13.4 single-node, 2g heap / 3g memory
 soc-kibana.container           Kibana 8.13.4, 1g memory, service token + 3 encryption keys
 soc-net.network                Bridge 10.89.1.0/24
+salt/                          SO salt overrides (deployed to /opt/so/saltstack/local/)
+  _modules/healthcheck.py      healthcheck module + fleet_image check (wolfi swap guard)
+  pillar/healthcheck/          healthcheck pillar (enabled, schedule, checks)
 docs/ROADMAP.md                Phased build plan
 docs/DEPLOYMENT.md             VM topology, sizing, integration wiring order
+docs/PHASE0.md                 Phase 0 plan: SO on Proxmox + network mirror
+docs/TECH-BRIEF-PHASE0.md      Reproduction runbook: exact commands + config changes
+docs/TECH-BRIEF-PHASE1.md      Phase 1 runbook: x86-64-v3 wolfi swap + setup completion + monitoring hook
 ```
 
 The Phase 1 ELK Quadlet stack is superseded by Security Onion's bundled Elasticsearch. It is retained in git history and as a reference pattern for running the external platform layer (IRIS, IntelOwl, MISP, CAPEv2, Shuffle) as Quadlet containers on the Fedora host.

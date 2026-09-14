@@ -6,11 +6,13 @@ VM topology, resource sizing, and integration wiring order for the SOC platform.
 
 | VM | Role | OS | Placement |
 |---|---|---|---|
-| `soc-onion` | Security Onion (core XDR) | Oracle Linux (appliance) | Proxmox |
+| `soc-onion` | Security Onion (core XDR) | Oracle Linux (appliance) | Proxmox — **requires x86-64-v3 (AVX2) CPU**; see note below |
 | `soc-host` | Fedora Server 43 — external platform layer (IRIS, IntelOwl, MISP, CAPEv2, Velociraptor, Shuffle) | Fedora Server 43 | Proxmox |
 | `soc-ips` | Inline Suricata IPS (Phase 4) | Fedora Server or appliance | Proxmox, network edge |
 
 Security Onion runs in its own VM — it is an appliance, not a Quadlet stack. The external platform layer runs as Podman Quadlet containers on `soc-host`, reusing the Phase 1 pattern from this repo.
+
+> **CPU requirement (x86-64-v3):** Since beats 9.4.3, Elastic's `elastic-agent` image uses a UBI 10 base whose glibc requires x86-64-v3 (AVX2). The current host (Xeon E5-4650 v2, Ivy Bridge) lacks AVX2, so the `so-elastic-fleet` container crash-loops with `Fatal glibc error: CPU does not support x86-64-v3`. Workaround: swap in Elastic's official `elastic-agent-wolfi` variant (v2-compatible, hardened). See [docs/TECH-BRIEF-PHASE1.md](docs/TECH-BRIEF-PHASE1.md). The swap must be re-applied after every `soup` update. Long-term fix: migrate to an AVX2-capable host.
 
 ## Resource sizing
 
@@ -49,8 +51,8 @@ Wire in this order — each step depends on the previous:
 
 ## Verification checklist
 
-- [ ] SOC console shows live alerts and Zeek logs
-- [ ] PCAP capture works
+- [x] SOC console shows live alerts and Zeek logs
+- [x] PCAP capture works
 - [ ] Wazuh agent reports from `soc-host`
 - [ ] MISP IOCs appear in Hunt
 - [ ] IntelOwl enrichment lands in an IRIS case

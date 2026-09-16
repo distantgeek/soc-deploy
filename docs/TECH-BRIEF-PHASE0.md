@@ -74,6 +74,29 @@ ethtool -k nic1 | grep -E 'generic-receive-offload|generic-segmentation-offload|
 ip -s link show vmbr1       # RX counters incrementing (mirror feed live)
 ```
 
+### 2.5 Root cause: bridge MAC learning starves the sniffing VM (FIXED 2026-09-15)
+
+**Symptom:** the SO VM's monitor NIC (`ens19`/`bond0`) saw only broadcast/multicast — no unicast — even though the mirror feed was flowing into `nic1` (471 GB RX). Suricata/Zeek got no real traffic.
+
+**Root cause:** a Linux bridge does MAC learning. Once it learned every LAN MAC on `nic1`, known-unicast frames were forwarded only to `nic1` (the ingress port → dropped) instead of being flooded to the VM's `tap300i1`. The VM only received broadcast/multicast + unknown unicast. The switch mirror was working all along.
+
+**Fix:** disable MAC learning on the mirror ingress port so the bridge floods everything to the sniffing VM:
+
+```bash
+bridge link set dev nic1 learning off
+bridge fdb del <mac> dev nic1 master   # clear stale entries (repeat per entry; they also age out in ~5 min)
+```
+
+**Persistent config** — added to the `vmbr1` stanza in `/etc/network/interfaces`:
+
+```
+	post-up bridge link set dev nic1 learning off
+```
+
+**Verification (2026-09-15):**
+- `tap300i1` TX (into the VM) climbed from 139 MB to 200 MB within minutes of the fix.
+- Suricata `eve` file began generating real unicast alerts: `GPL P2P BitTorrent transfer`, `GPL WEB_SERVER 403 Forbidden`, `ET DNS Query for .cc TLD`, `ET P2P BitTorrent DHT ping/announce_peers`.
+
 ## 3. Security Onion VM creation (DONE 2026-09-12)
 
 ### 3.1 Settings
@@ -125,14 +148,43 @@ Gotcha: an unquoted `--boot order=ide2;scsi0` truncates at the semicolon (shell 
    - Analyst account, hostname, timezone
 4. Reboot; confirm `so-status` all green.
 
-## 5. Verification checklist
+## 5. Verification checklist (ALL PASSED 2026-09-16)
 
-- [ ] `so-status` shows all services green
-- [ ] SOC console dashboards populate (Elasticsearch healthy)
-- [ ] Zeek logs flowing (`conn.log` etc.)
-- [ ] Suricata alerts fire on a test signal (`so-import-pcap` of a known-bad pcap)
-- [ ] PCAP capture works (search + download a session from Hunt)
-- [ ] No persistent Capture Loss on the sniffing interface
+- [x] `so-status` shows all services green (24/24 containers running)
+- [x] SOC console dashboards populate (Elasticsearch healthy)
+- [x] Zeek logs flowing (`conn.log` etc.)
+- [x] Suricata alerts fire on real unicast traffic (BitTorrent, 403s, DNS .cc)
+- [x] PCAP capture works (`/nsm/suripcap/1/so-pcap.*`, 1GB files)
+- [x] No persistent Capture Loss on the sniffing interface
+
+## 6. PCAP cap + per-endpoint capture (2026-09-16)
+
+### 6.1 Global PCAP cap lowered to 10GB
+
+The default Suricata PCAP cap was 32GB (`max-files: 32`). Lowered to **10GB** to conserve disk:
+
+- Edited `/opt/so/saltstack/local/pillar/minions/so-socdeploy_standalone.sls` → `suricata.pcap.maxsize: 10`
+- Applied: `salt-call state.apply suricata.config` then `docker restart so-suricata`
+- Verified: `max-files: 10` in `/opt/so/conf/suricata/suricata.yaml`; old files trimmed 32 → 10
+
+### 6.2 `so-capture` — per-endpoint capture independent of the cap
+
+Suricata's pcap capture is global; it has no per-IP retention exception. To capture **all** traffic for one endpoint regardless of the 10GB cap, a helper script was installed at `/usr/sbin/so-capture`:
+
+```bash
+sudo so-capture start <hostname-or-ip> [hours]   # default 24h retention
+sudo so-capture stop <hostname-or-ip>
+sudo so-capture stop-all
+sudo so-capture status
+```
+
+- Resolves hostname → IP (or takes an IP directly)
+- Writes to `/nsm/pcapout/<ip>/capture.pcap` — separate from the Suricata cap
+- Rotates hourly, keeps `[hours]` files (default 24)
+- Output dir is chowned to `tcpdump:tcpdump` (tcpdump drops privileges)
+- Verified: captured real DNS traffic for 192.168.2.148; hostname resolution works
+
+**Caveats:** hostname resolves once at start (restart if DHCP IP changes); on-demand only (no systemd service yet — see AGENTS.md).
 
 ## Appendix A — Access details
 
@@ -141,6 +193,9 @@ Gotcha: an unquoted `--boot order=ide2;scsi0` truncates at the semicolon (shell 
 | Proxmox API | token in `~/.config/proxmox/token` (`opencode@pve!opencode0`) |
 | Proxmox SSH | `ssh -i ~/.ssh/id_ed25519_pve_opencode root@192.168.2.2` |
 | GS305E web UI | `http://192.168.2.122` (login `admin`/blank or `admin`/`password`) |
+| SO VM SSH | `ssh -i ~/.ssh/id_ed25519_so socadmin@192.168.2.50` |
+| SO console | `https://192.168.2.50` (login `admin` / CONPASS from `.env`) |
+| SO sudo | CONPASS from `.env` (`echo '$CONPASS' | sudo -S ...`) |
 
 ## Appendix B — Commands used to verify the mirror (2026-09-12)
 

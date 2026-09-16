@@ -76,4 +76,4 @@ The Phase 1 ELK Quadlet stack is superseded by Security Onion's bundled Elastics
 
 ## Status
 
-Phase 0 (Security Onion foundation) is the current focus. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Phase 0 (Security Onion foundation) is **complete** (2026-09-16): all 24 containers green, Zeek/Suricata/PCAP ingesting the mirrored feed, SOC console live. Next: Phase 1 (core detection tuning). See [docs/ROADMAP.md](docs/ROADMAP.md).

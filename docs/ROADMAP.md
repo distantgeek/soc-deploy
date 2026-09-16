@@ -2,7 +2,7 @@
 
 Phased build plan for the SOC platform. Each phase has a goal, the components it introduces, the integration wiring, and exit criteria. Phases build on each other; do not skip ahead.
 
-## Phase 0 — Foundation: Security Onion
+## Phase 0 — Foundation: Security Onion (COMPLETE 2026-09-16)
 
 **Goal:** Stand up the core detection platform and prove the network is being monitored.
 
@@ -99,3 +99,6 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 | 2026-09 | DLP + Application Control added as Phase 5 (long-term) | Trellix DLP/App Control equivalents; no maintained purpose-built OSS exists, so compose from existing stack |
 | 2026-09 | Managed switch inline on the AiMesh backhaul link (RT-AC68U ↔ GS-AX5400), mirroring to a dedicated sniffing port | ASUS AiMesh has no SPAN; the backhaul is the choke point for all upstairs traffic; monitoring stays out-of-band for endpoints |
 | 2026-09 | Dedicated sniffing port on the R820's quad-port NIC via a dedicated bridge (vmbrX) | Isolates promiscuous sniffing + offload changes from management; PCIe passthrough would take all 4 ports including management |
+| 2026-09 | Disable MAC learning on the mirror ingress port (`nic1`) | The bridge learned all LAN MACs and stopped flooding known-unicast to the sniffing VM — the "no feed" root cause. Learning off forces the bridge to flood everything to `tap300i1` |
+| 2026-09 | Suricata PCAP cap lowered to 10GB | Disk is limited (125G NSM); PCAP was growing ~311GB/day at current traffic. 10GB cap + per-endpoint `so-capture` for full visibility on specific hosts |
+| 2026-09 | Per-endpoint capture via `so-capture` script (not Suricata) | Suricata pcap has no per-IP retention exception; a separate tcpdump per host is the only way to capture "all data for one IP regardless of the global cap" |

@@ -51,17 +51,20 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 
 **Exit criteria:** Alert volume is reviewable; host telemetry flows into Elasticsearch; at least one detection rule fires on a test signal.
 
-## Phase 2 — External platform layer: IRIS + IntelOwl + MISP
+## Phase 2 — External platform layer: IRIS + IntelOwl + MISP + IdP
 
-**Goal:** Add case management, enrichment, and threat intel around the core.
+**Goal:** Add case management, enrichment, threat intel, and unified login around the core.
 
 - Deploy **DFIR-IRIS** (case management) and **IntelOwl** (enrichment) as Quadlet containers on the Fedora host.
 - Deploy **MISP** as the threat intel platform.
+- **Unified IdP: Malcolm's bundled Keycloak** serves as the single login for Malcolm, Wazuh dashboard, IRIS, IntelOwl, MISP, and OpenSearch Dashboards (OIDC/SAML). Decision 2026-09-16: use bundled Keycloak over Authentik (zero extra deployment, full-featured, Malcolm is long-term). Authentik deferred unless SSH-key-via-IdP or advanced features are needed.
 - Wire MISP → Security Onion: Elastic `ti_misp` integration ingests IOCs into Elasticsearch (Hunt-viewable); community `securityonion-misp` pulls MISP NIDS rules into Suricata/Zeek via cron.
 - Wire IntelOwl → IRIS via the native connector (enrichment results land in cases).
 - Wire IRIS → MISP (IOC export) and IntelOwl → MISP (enriched IOC push).
 
-**Exit criteria:** An analyst can open a case in IRIS, enrich an indicator via IntelOwl, and see MISP IOCs appear in Hunt and Suricata rules.
+**Exit criteria:** An analyst can open a case in IRIS, enrich an indicator via IntelOwl, see MISP IOCs appear in Hunt and Suricata rules, and log into all platforms with one Keycloak account.
+
+**Follow-up (after Malcolm/Wazuh stack is stable):** centralized SSH key management — evaluate Authentik (LDAP-based `AuthorizedKeysCommand`) vs a CA-signed SSH key system. Deferred until the core stack is up.
 
 ## Phase 3 — DFIR + SOAR: Velociraptor + Shuffle
 
@@ -117,6 +120,7 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 | Date | Decision | Rationale |
 |---|---|---|
 | 2026-09 | **Migrate off Security Onion → Malcolm + Wazuh** | SO's API Clients (rule tuning) require a paid Pro license + Hydra — paywalled on free tier. Malcolm (CISA/INL, Apache 2.0) bundles the same network stack (Arkime + Zeek + Suricata + OpenSearch + Dashboards) pre-integrated; Wazuh covers host EDR. Zero paywalls, full API. Migration is low-risk (little data) |
+| 2026-09 | **Malcolm's bundled Keycloak = unified IdP** (over Authentik) | Keycloak is already bundled with Malcolm (zero extra deployment), full-featured (OIDC/SAML/LDAP), and Malcolm is the long-term platform. Authentik's advantages (SSH-key-via-LDAP, lighter, more flexible) don't justify a separate component for homelab SSO. Authentik deferred unless SSH-key management or advanced features are needed |
 | 2026-09 | Security Onion replaces DIY ELK Quadlet stack | Fastest path to network monitoring + log dissection; bundles Suricata/Zeek/Wazuh/ES/Fleet |
 | 2026-09 | IRIS + IntelOwl replace TheHive + Cortex | TheHive went commercial; IRIS/IntelOwl are actively maintained, fully open source, natively integrated |
 | 2026-09 | IDS (passive) first; inline IPS deferred | "Lots of setup before expanding" — IPS is Phase 4 |

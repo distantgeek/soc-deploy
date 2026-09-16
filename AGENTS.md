@@ -6,6 +6,10 @@ Notes for future agent sessions working in this repo.
 
 **Migrating off Security Onion** → **Malcolm (CISA/INL, Apache 2.0) for network monitoring + Wazuh for host EDR**. SO's API Clients are Pro-paywalled. Malcolm bundles the same stack (Arkime + Zeek + Suricata + OpenSearch + Dashboards) pre-integrated. See `docs/MIGRATION-PLAN.md`. Phase 0 (SO) is complete; network monitoring carries over. Migration is low-risk (little data) and not time-critical.
 
+**Malcolm update hook (auto-heal):** Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2 — crashes on the Ivy Bridge host). Scripts in `malcolm/`: `filebeat-patch.sh` (wolfi swap + rebuild), `malcolm-update.sh` (safe update wrapper), `malcolm-filebeat-check.sh` + systemd timer (auto-heal). Deploy to `/usr/local/sbin/` + `/etc/systemd/system/`.
+
+**network-engineer subagent:** available in opencode (deepseek-v4-pro) for topology/mirror/IPS/capture review during M0–M2.
+
 ## Open items / revisit later
 
 - **`so-capture` systemd service (DEFERRED 2026-09-16):** the per-endpoint capture helper at `/usr/sbin/so-capture` is on-demand only (start/stop via sudo). Revisit when persistent captures are needed — wrap it in a systemd service (or a `systemd-run --unit=...` wrapper) so captures survive reboots. See `docs/TECH-BRIEF-PHASE0.md` §6.2.

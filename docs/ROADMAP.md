@@ -13,9 +13,18 @@ Phased build plan for the SOC platform. Each phase has a goal, the components it
 - Carry over the TrueNAS suppression; build saved queries mirroring the SO Hunt searches.
 - Decommission SO once the target stack is stable.
 
+**Prerequisites (M0):**
+- Add a mirror NIC to `soc-host` on PVE `vmbr1`
+- **Filebeat AVX2 swap** (required on Ivy Bridge host): Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2). Swap to `filebeat-wolfi:9.5.2` via `malcolm/filebeat-patch.sh`
+- **Update hook** (auto-heal): `malcolm/malcolm-update.sh` (safe update wrapper) + `malcolm/malcolm-filebeat-check.sh` + systemd timer (detects crash-loop → re-applies swap). Same pattern as the SO wolfi healthcheck guard
+- Resource sizing (~8GB RAM + disk for OpenSearch + Arkime PCAP); rule-update mechanism (`suricata-update` cron); alerting (OpenSearch Alerting + Sigma)
+
+**Tools:**
+- **network-engineer subagent** (opencode, deepseek-v4-pro) — consult for topology/mirror/IPS/capture review during M0–M2
+
 Detailed plan: [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md).
 
-**Exit criteria:** Suricata alerts, Zeek logs, Arkime sessions, and Wazuh events all visible in dashboards; API access is free on every component.
+**Exit criteria:** Suricata alerts, Zeek logs, Arkime sessions, and Wazuh events all visible in dashboards; API access is free on every component; Filebeat survives updates via the auto-heal hook.
 
 ## Phase 0 — Foundation: Security Onion (COMPLETE 2026-09-16)
 

@@ -64,7 +64,8 @@ Malcolm (on soc-host, Docker Compose)
 
 ### M0 — Prerequisites
 - **soc-host mirror NIC:** add a NIC on PVE `vmbr1` to `soc-host` so Malcolm can capture the mirror feed (or run a Malcolm forwarder on the SO VM's `bond0`)
-- **Filebeat AVX2 swap (REQUIRED on Ivy Bridge host):** Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2). Swap to `filebeat-wolfi:9.5.2` in Malcolm's `filebeat.Dockerfile` / docker-compose before first deploy (see §7b)
+- **Filebeat AVX2 swap (REQUIRED on Ivy Bridge host):** Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2). Swap to `filebeat-wolfi:9.5.2` via `malcolm/filebeat-patch.sh` (see §7b)
+- **Update hook (auto-heal):** `malcolm/malcolm-update.sh` wraps Malcolm updates (re-applies the swap); `malcolm/malcolm-filebeat-check.sh` + systemd timer auto-detect a crash-loop and re-heal (see §7c)
 - **Resource sizing:** Malcolm needs ~8GB RAM + disk for OpenSearch indices + Arkime PCAP (reuse the 10GB PCAP cap / `so-capture` pattern)
 - **Rule update mechanism:** plan `suricata-update` cron for ET Open rules
 - **Alerting:** plan OpenSearch Alerting plugin + Sigma rules (replaces ElastAlert)
@@ -148,6 +149,19 @@ The SO deployment hit this: Elastic's `elastic-agent` 9.4.3+ uses a UBI 10 base 
 **The one blocker: Malcolm's Filebeat 9.5.2 (UBI 10).** Workaround (same as the SO elastic-agent fix): swap to the **wolfi variant** — `docker.elastic.co/beats/filebeat-wolfi:9.5.2` (hardened, no AVX2 requirement; verified it exists). One-line change to Malcolm's `filebeat.Dockerfile` or a docker-compose image override. Alternative: pin `filebeat-oss:9.4.2` (last pre-UBI-10 version).
 
 **Bottom line:** Malcolm + Wazuh is viable on the Ivy Bridge host with a single Filebeat image swap — a much smaller workaround than SO's fleet swap.
+
+## 7c. Filebeat update hook (auto-heal, mirrors the SO wolfi guard)
+
+Elastic keeps UBI 10 ("the standard we need to align on everywhere now"), so **every Malcolm update re-introduces the AVX2 crash** when the Filebeat version bumps. Scripts in `malcolm/`:
+
+| File | Purpose |
+|---|---|
+| `filebeat-patch.sh` | Patches `filebeat.Dockerfile` (`filebeat-oss` → `filebeat-wolfi`), rebuilds the image with the docker-compose tag |
+| `malcolm-update.sh` | Safe update wrapper: `control.py update` → re-patch → `docker compose up -d` |
+| `malcolm-filebeat-check.sh` | Auto-heal: detects Filebeat crash-loop (`x86-64-v3` in logs) → re-patch → restart |
+| `malcolm-filebeat-check.service` + `.timer` | systemd timer running the check every 5 min |
+
+**Deploy:** copy scripts to `/usr/local/sbin/`, units to `/etc/systemd/system/`, `systemctl enable --now malcolm-filebeat-check.timer`. Same resilience as the SO healthcheck guard — even if an update bypasses the wrapper, the timer catches it within minutes.
 
 ## 8. Open questions
 

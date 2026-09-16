@@ -1,0 +1,9 @@
+[Unit]
+Description=Malcolm Filebeat AVX2 auto-heal check
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/malcolm-filebeat-check.sh /opt/malcolm
+# Malcolm runs as root (docker compose); run the check as root
+User=root

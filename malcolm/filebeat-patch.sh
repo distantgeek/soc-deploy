@@ -1,11 +1,16 @@
 #!/bin/bash
-# filebeat-patch.sh — re-applies the Filebeat wolfi swap for Malcolm.
+# filebeat-patch.sh — pins Malcolm's Filebeat to a CPU-compatible version.
 #
 # Malcolm's filebeat image is built FROM docker.elastic.co/beats/filebeat-oss
-# (UBI 10 base), which requires x86-64-v3 (AVX2) and crash-loops on the Ivy
-# Bridge host (Xeon E5-4650 v2). This patches the Dockerfile to use the
-# hardened wolfi variant (no AVX2 requirement) and rebuilds the image with the
-# tag Malcolm's docker-compose expects.
+# (UBI 10 base since 9.4.3), which requires x86-64-v3 (AVX2) and crash-loops on
+# the Ivy Bridge host (Xeon E5-4650 v2). This patches the Dockerfile to pin
+# filebeat-oss:9.4.2 (the last pre-UBI-10 version — UBI 9 base, no AVX2
+# requirement, microdnf still works) and rebuilds the image with the tag
+# Malcolm's docker-compose expects.
+#
+# NOTE: the wolfi variant (filebeat-wolfi) was tried first but BREAKS the build
+# — Malcolm's Dockerfile uses microdnf (RPM), which doesn't exist on the wolfi
+# (apk) base. The 9.4.2 pin keeps Malcolm's exact Dockerfile working.
 #
 # Usage: filebeat-patch.sh [MALCOLM_DIR] [IMAGE_TAG]
 #   MALCOLM_DIR  path to the Malcolm checkout (default: /opt/malcolm)
@@ -16,6 +21,7 @@ set -euo pipefail
 MALCOLM_DIR="${1:-/opt/malcolm}"
 DOCKERFILE="$MALCOLM_DIR/Dockerfiles/filebeat.Dockerfile"
 COMPOSE="$MALCOLM_DIR/docker-compose.yml"
+PIN_VERSION="9.4.2"
 
 if [[ ! -f "$DOCKERFILE" ]]; then
 	echo "ERROR: $DOCKERFILE not found" >&2
@@ -34,15 +40,15 @@ else
 fi
 echo "Target image: $IMAGE_TAG"
 
-# Patch the FROM line: filebeat-oss -> filebeat-wolfi
-if grep -q 'filebeat-wolfi' "$DOCKERFILE"; then
-	echo "filebeat.Dockerfile already patched (wolfi)"
+# Pin the FROM line to the last pre-UBI-10 version (any filebeat-oss version -> 9.4.2)
+if grep -q "filebeat-oss:${PIN_VERSION}" "$DOCKERFILE"; then
+	echo "filebeat.Dockerfile already pinned to ${PIN_VERSION}"
 else
-	sed -i 's|docker.elastic.co/beats/filebeat-oss:|docker.elastic.co/beats/filebeat-wolfi:|' "$DOCKERFILE"
-	echo "Patched filebeat.Dockerfile: filebeat-oss -> filebeat-wolfi"
+	sed -i "s|docker.elastic.co/beats/filebeat-oss:[0-9.]*|docker.elastic.co/beats/filebeat-oss:${PIN_VERSION}|" "$DOCKERFILE"
+	echo "Pinned filebeat.Dockerfile to filebeat-oss:${PIN_VERSION}"
 fi
 
 # Rebuild the image with the tag docker-compose expects
-echo "Building $IMAGE_TAG (wolfi base)..."
+echo "Building $IMAGE_TAG (filebeat-oss:${PIN_VERSION})..."
 docker build -f "$DOCKERFILE" -t "$IMAGE_TAG" "$MALCOLM_DIR"
 echo "Done. Restart the filebeat container: docker compose up -d filebeat"

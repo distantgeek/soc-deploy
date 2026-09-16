@@ -64,6 +64,7 @@ Malcolm (on soc-host, Docker Compose)
 
 ### M0 — Prerequisites
 - **soc-host mirror NIC:** add a NIC on PVE `vmbr1` to `soc-host` so Malcolm can capture the mirror feed (or run a Malcolm forwarder on the SO VM's `bond0`)
+- **Filebeat AVX2 swap (REQUIRED on Ivy Bridge host):** Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2). Swap to `filebeat-wolfi:9.5.2` in Malcolm's `filebeat.Dockerfile` / docker-compose before first deploy (see §7b)
 - **Resource sizing:** Malcolm needs ~8GB RAM + disk for OpenSearch indices + Arkime PCAP (reuse the 10GB PCAP cap / `so-capture` pattern)
 - **Rule update mechanism:** plan `suricata-update` cron for ET Open rules
 - **Alerting:** plan OpenSearch Alerting plugin + Sigma rules (replaces ElastAlert)
@@ -118,6 +119,35 @@ Malcolm (on soc-host, Docker Compose)
 - **Reuses existing work:** Suricata/Zeek concepts carry over; the ES manipulation technique transfers to OpenSearch (API-compatible); the TrueNAS suppression carries over
 - **Main risk:** Malcolm is a container cluster (resource use) and lacks host EDR (Wazuh covers it). No single-appliance convenience like SO's SOC console
 - **OPNSense** adds inline IPS (blocking) + firewall + Zenarmor — Phase 4 enforcement layer, no complication adding later
+
+## 7a. Licensing (verified 2026-09-16)
+
+- **Malcolm project: Apache 2.0** (fully permissive)
+- Components: OpenSearch + Dashboards (Apache 2.0), Arkime (Apache 2.0), Zeek (BSD-3), Suricata (GPL-2.0), Strelka (Apache 2.0), NetBox (Apache 2.0), Keycloak (Apache 2.0), Valkey (BSD-3), Postgres (PostgreSQL license), Nginx (BSD-2)
+- **Logstash OSS + Filebeat OSS: Elastic License 2.0 (ELv2)** — source-available, NOT OSI open source. Restrictions: cannot offer as a managed service to third parties; cannot circumvent license keys. **Free for internal/homelab use** — no practical restriction here
+- **Wazuh: GPLv2** (fully open source)
+
+## 7b. CPU compatibility — AVX2 / x86-64-v3 (verified 2026-09-16)
+
+The SO deployment hit this: Elastic's `elastic-agent` 9.4.3+ uses a UBI 10 base whose glibc requires **x86-64-v3 (AVX2)** — the Proxmox host (Xeon E5-4650 v2, Ivy Bridge) lacks AVX2, so the container crash-loops with `Fatal glibc error: CPU does not support x86-64-v3` (elastic/beats#51824).
+
+**Malcolm image bases (verified from Dockerfiles):**
+
+| Malcolm container | Base image | AVX2-safe? |
+|---|---|---|
+| opensearch | `opensearchproject/opensearch:3.8.0` (Java) | ✅ |
+| dashboards | `opensearchproject/opensearch-dashboards:3.8.0` (Node.js) | ✅ |
+| logstash-oss | `docker.elastic.co/logstash/logstash-oss:9.5.2` (**UBI 9**) | ✅ |
+| **filebeat-oss** | `docker.elastic.co/beats/filebeat-oss:9.5.2` (**UBI 10**) | ❌ **AVX2 REQUIRED** |
+| arkime | `debian:13-slim` | ✅ |
+| zeek | `zeek/zeek:8.2.2` | ✅ |
+| suricata | `debian:13-slim` | ✅ |
+
+**Wazuh image bases:** manager (`amazonlinux:2023`, C-based) ✅ · indexer (OpenSearch/Java) ✅ · dashboard (Node.js) ✅ · agent (C-based) ✅ — **no AVX2 issues**.
+
+**The one blocker: Malcolm's Filebeat 9.5.2 (UBI 10).** Workaround (same as the SO elastic-agent fix): swap to the **wolfi variant** — `docker.elastic.co/beats/filebeat-wolfi:9.5.2` (hardened, no AVX2 requirement; verified it exists). One-line change to Malcolm's `filebeat.Dockerfile` or a docker-compose image override. Alternative: pin `filebeat-oss:9.4.2` (last pre-UBI-10 version).
+
+**Bottom line:** Malcolm + Wazuh is viable on the Ivy Bridge host with a single Filebeat image swap — a much smaller workaround than SO's fleet swap.
 
 ## 8. Open questions
 

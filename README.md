@@ -76,4 +76,4 @@ The Phase 1 ELK Quadlet stack is superseded by Security Onion's bundled Elastics
 
 ## Status
 
-Phase 0 (Security Onion foundation) is **complete** (2026-09-16): all 24 containers green, Zeek/Suricata/PCAP ingesting the mirrored feed. **Direction change:** SO's API Clients are Pro-paywalled, so the platform is migrating to a fully open-source stack (OpenSearch + Suricata/Zeek/Arkime + Wazuh). See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+Phase 0 (Security Onion foundation) is **complete** (2026-09-16): all 24 containers green, Zeek/Suricata/PCAP ingesting the mirrored feed. **Direction change:** SO's API Clients are Pro-paywalled, so the platform is migrating to **Malcolm (Apache 2.0) + Wazuh** — a fully open-source stack. See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) and [docs/ROADMAP.md](docs/ROADMAP.md).

@@ -2,7 +2,7 @@
 
 VM topology, resource sizing, and integration wiring order for the SOC platform.
 
-> **DIRECTION CHANGE (2026-09-16):** Security Onion's API Clients are Pro-paywalled. The platform is migrating to a fully open-source stack (**OpenSearch + Suricata/Zeek/Arkime + Wazuh**) on `soc-host`. `soc-onion` remains running until the target stack is stable (its Suricata/Zeek/PCAP carry over). See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md).
+> **DIRECTION CHANGE (2026-09-16):** Security Onion's API Clients are Pro-paywalled. The platform is migrating to a fully open-source stack — **Malcolm (CISA/INL, Apache 2.0) for network monitoring + Wazuh for host EDR** — on `soc-host`. `soc-onion` remains running until the target stack is stable (its Suricata/Zeek/PCAP carry over). See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md).
 
 ## VM topology
 

@@ -4,7 +4,7 @@ Notes for future agent sessions working in this repo.
 
 ## Current direction (2026-09-16)
 
-**Migrating off Security Onion** → fully open-source stack: **OpenSearch + Suricata/Zeek/Arkime + Wazuh**. SO's API Clients are Pro-paywalled. See `docs/MIGRATION-PLAN.md`. Phase 0 (SO) is complete; network monitoring (Suricata/Zeek/PCAP) carries over. Migration is low-risk (little data) and not time-critical.
+**Migrating off Security Onion** → **Malcolm (CISA/INL, Apache 2.0) for network monitoring + Wazuh for host EDR**. SO's API Clients are Pro-paywalled. Malcolm bundles the same stack (Arkime + Zeek + Suricata + OpenSearch + Dashboards) pre-integrated. See `docs/MIGRATION-PLAN.md`. Phase 0 (SO) is complete; network monitoring carries over. Migration is low-risk (little data) and not time-critical.
 
 ## Open items / revisit later
 

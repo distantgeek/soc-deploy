@@ -21,7 +21,7 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 **Goal:** Make detection useful, not just running.
 
 - Tune Suricata rulesets (ET Open + MISP-imported rules); suppress noise.
-- Enable Wazuh agent on the Fedora host and key VMs; review active response options.
+- Enable Elastic Agent/Fleet/osquery on endpoints; build baseline inventory. (Wazuh is **not bundled** in SO 3.x — deferred to Phase 3, where it pairs with Velociraptor/Shuffle for DFIR + active response.)
 - Enable Elastic Agent/Fleet/osquery on endpoints; build baseline inventory.
 - Use Hunt for ad-hoc threat hunting queries.
 
@@ -102,3 +102,6 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 | 2026-09 | Disable MAC learning on the mirror ingress port (`nic1`) | The bridge learned all LAN MACs and stopped flooding known-unicast to the sniffing VM — the "no feed" root cause. Learning off forces the bridge to flood everything to `tap300i1` |
 | 2026-09 | Suricata PCAP cap lowered to 10GB | Disk is limited (125G NSM); PCAP was growing ~311GB/day at current traffic. 10GB cap + per-endpoint `so-capture` for full visibility on specific hosts |
 | 2026-09 | Per-endpoint capture via `so-capture` script (not Suricata) | Suricata pcap has no per-IP retention exception; a separate tcpdump per host is the only way to capture "all data for one IP regardless of the global cap" |
+| 2026-09 | Wazuh deferred to Phase 3; Fleet/osquery for Phase 1 host telemetry | SO 3.x does not bundle Wazuh (no `so-wazuh-manager` container). Fleet/osquery is the native, zero-extra-infra path for Phase 1; Wazuh pairs with Velociraptor/Shuffle for DFIR + active response in Phase 3 |
+| 2026-09 | Event split: SO = store/search layer, Wazuh = host EDR layer | Avoid duplicate alerting. SO owns ES; Wazuh alerts forward into SO's Logstash → ES → Hunt. Wazuh agent for host security (FIM, rootkits, active response); Elastic Agent/osquery for host inventory/telemetry; network events are SO-only |
+| 2026-09 | Console split: Hunt = primary console, Wazuh console = drill-down only | Hunt is the single pane of glass for all events (network + host, with PCAP/case pivots). Wazuh console used only for Wazuh-specific deep dives (FIM file details, vulnerability scan results, active response history) |

@@ -53,7 +53,7 @@ Wire in this order — each step depends on the previous:
 
 - [x] SOC console shows live alerts and Zeek logs
 - [x] PCAP capture works
-- [ ] Wazuh agent reports from `soc-host`
+- [ ] Elastic Agent/Fleet reports from `soc-host` (osquery inventory in Hunt)
 - [ ] MISP IOCs appear in Hunt
 - [ ] IntelOwl enrichment lands in an IRIS case
 - [ ] Velociraptor artifact results appear in Elasticsearch

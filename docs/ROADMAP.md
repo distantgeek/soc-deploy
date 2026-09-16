@@ -2,6 +2,23 @@
 
 Phased build plan for the SOC platform. Each phase has a goal, the components it introduces, the integration wiring, and exit criteria. Phases build on each other; do not skip ahead.
 
+> **DIRECTION CHANGE (2026-09-16):** Security Onion's API Clients (programmatic rule tuning) require a paid **Pro license + Hydra** — paywalled on free tier. The platform is migrating to a **fully open-source stack: OpenSearch + Suricata/Zeek/Arkime + Wazuh** (zero paywalls, full API). Phase 0 (SO foundation) is complete and its network monitoring (Suricata/Zeek/PCAP) carries over. See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md). Phases 1–5 below are reframed around the target stack, not SO.
+
+## Phase M — Migration to OpenSearch + Suricata/Zeek/Arkime + Wazuh (DRAFT)
+
+**Goal:** Replace the SO console with a no-paywall stack while keeping the network monitoring already built.
+
+- Stand up Wazuh (manager + indexer + dashboard), Logstash/Data Prepper, and Arkime on `soc-host`.
+- Forward Suricata `eve.json` + Zeek logs → Wazuh indexer (OpenSearch).
+- Arkime captures PCAP → Wazuh indexer + PCAP files.
+- Enroll endpoints (DC01, MEMBERSRV01, Workstation, open-atomic, soc-host) with Wazuh agents.
+- Build OpenSearch Dashboards (network, alerts, host inventory); carry over the TrueNAS suppression.
+- Decommission SO once the target stack is stable.
+
+Detailed plan: [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md).
+
+**Exit criteria:** Suricata alerts, Zeek logs, Arkime sessions, and Wazuh events all visible in one OpenSearch dashboard; API access is free on every component.
+
 ## Phase 0 — Foundation: Security Onion (COMPLETE 2026-09-16)
 
 **Goal:** Stand up the core detection platform and prove the network is being monitored.
@@ -92,6 +109,7 @@ Detailed steps: [docs/PHASE0.md](docs/PHASE0.md).
 
 | Date | Decision | Rationale |
 |---|---|---|
+| 2026-09 | **Migrate off Security Onion → OpenSearch + Suricata/Zeek/Arkime + Wazuh** | SO's API Clients (rule tuning) require a paid Pro license + Hydra — paywalled on free tier. The target stack replicates SO's functions with zero paywalls and full API access. Network monitoring (Suricata/Zeek/PCAP) carries over; migration is low-risk (little data) |
 | 2026-09 | Security Onion replaces DIY ELK Quadlet stack | Fastest path to network monitoring + log dissection; bundles Suricata/Zeek/Wazuh/ES/Fleet |
 | 2026-09 | IRIS + IntelOwl replace TheHive + Cortex | TheHive went commercial; IRIS/IntelOwl are actively maintained, fully open source, natively integrated |
 | 2026-09 | IDS (passive) first; inline IPS deferred | "Lots of setup before expanding" — IPS is Phase 4 |

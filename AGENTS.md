@@ -2,6 +2,10 @@
 
 Notes for future agent sessions working in this repo.
 
+## Current direction (2026-09-16)
+
+**Migrating off Security Onion** → fully open-source stack: **OpenSearch + Suricata/Zeek/Arkime + Wazuh**. SO's API Clients are Pro-paywalled. See `docs/MIGRATION-PLAN.md`. Phase 0 (SO) is complete; network monitoring (Suricata/Zeek/PCAP) carries over. Migration is low-risk (little data) and not time-critical.
+
 ## Open items / revisit later
 
 - **`so-capture` systemd service (DEFERRED 2026-09-16):** the per-endpoint capture helper at `/usr/sbin/so-capture` is on-demand only (start/stop via sudo). Revisit when persistent captures are needed — wrap it in a systemd service (or a `systemd-run --unit=...` wrapper) so captures survive reboots. See `docs/TECH-BRIEF-PHASE0.md` §6.2.

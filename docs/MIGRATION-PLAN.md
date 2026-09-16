@@ -63,12 +63,13 @@ Malcolm (on soc-host, Docker Compose)
 ## 5. Migration plan (phased)
 
 ### M0 — Prerequisites
-- **soc-host mirror NIC:** add a NIC on PVE `vmbr1` to `soc-host` so Malcolm can capture the mirror feed (or run a Malcolm forwarder on the SO VM's `bond0`)
+- **soc-host mirror NIC:** add a vNIC to `soc-host` on PVE `vmbr1` (`qm set <vmid> --net1 virtio,bridge=vmbr1`). **Firewall=No** on that vNIC (PVE firewall drops/mangles mirror frames). Guest: bring the NIC up **IP-less**, `promisc on`, offloads off (`ethtool -K <if> gro off gso off tso off lro off`), persisted via NM. **Direct capture (Option A) + overlap (Option C)** — no forwarder needed. Verified by network-engineer subagent: with MAC learning off on `nic1`, the bridge floods the mirror feed to ALL taps (SO + soc-host) simultaneously; no bridge/switch changes needed.
+- **soc-host sizing (bump):** Malcolm (OpenSearch + Arkime + Zeek + Suricata) needs **8 vCPU / 16GB RAM min** + dedicated data volume for OpenSearch indices + Arkime PCAP (garage-0 has 6.1TB free). The old 4/8/100 spec is stale.
 - **Filebeat AVX2 swap (REQUIRED on Ivy Bridge host):** Malcolm's `filebeat-oss:9.5.2` uses UBI 10 (requires AVX2). Swap to `filebeat-wolfi:9.5.2` via `malcolm/filebeat-patch.sh` (see §7b)
 - **Update hook (auto-heal):** `malcolm/malcolm-update.sh` wraps Malcolm updates (re-applies the swap); `malcolm/malcolm-filebeat-check.sh` + systemd timer auto-detect a crash-loop and re-heal (see §7c)
-- **Resource sizing:** Malcolm needs ~8GB RAM + disk for OpenSearch indices + Arkime PCAP (reuse the 10GB PCAP cap / `so-capture` pattern)
 - **Rule update mechanism:** plan `suricata-update` cron for ET Open rules
 - **Alerting:** plan OpenSearch Alerting plugin + Sigma rules (replaces ElastAlert)
+- **Verify capture before trusting:** `tcpdump -i <vmbr1-iface> -c 10 -nn` on soc-host, then cross-check Suricata alert overlap + Zeek conn counts against SO during the overlap window
 
 ### M1 — Deploy Malcolm on soc-host
 - Clone `cisagov/Malcolm`, run setup + `docker compose up`

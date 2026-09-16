@@ -21,7 +21,7 @@ Security Onion runs in its own VM — it is an appliance, not a Quadlet stack. T
 | VM | vCPU | RAM | Disk | Notes |
 |---|---|---|---|---|
 | `soc-onion` | 8 | 16–24 GB | 200 GB+ | Security Onion minimum; ES + Zeek + Suricata are memory-hungry. Add RAM before adding rulesets |
-| `soc-host` | 4 | 8 GB | 100 GB | IRIS/IntelOwl/MISP are modest; CAPEv2 (Phase 4) needs its own disk for samples |
+| `soc-host` | 8 | 16 GB | 200 GB+ | Malcolm (OpenSearch + Arkime + Zeek + Suricata) + Wazuh + IRIS/IntelOwl/MISP. Bumped from 4/8/100 per network-engineer review (2026-09-16); CAPEv2 (Phase 4) needs its own disk for samples |
 | `soc-ips` | 4 | 8 GB | 50 GB | Phase 4 only |
 
 ## Network layout

@@ -304,6 +304,21 @@ Monitoring signal: the `so/healthcheck/fleet_image` event on the salt master eve
 | Resource | Access |
 |---|---|
 | SO VM SSH | `ssh -i ~/.ssh/id_ed25519_so socadmin@192.168.2.50` |
-| SO console | `https://192.168.2.50` (browser access range `192.168.2.0/24`) |
-| `socadmin` sudo password | `/tmp/so_vnc/socadmin_pw.txt` |
+| SO console | `https://192.168.2.50` (login `socadmin@distantgeek.net` / console password — NOT CONPASS) |
+| `socadmin` sudo password | `CONPASS` in `.env` |
 | Proxmox SSH | `ssh -i ~/.ssh/id_ed25519_pve_opencode root@192.168.2.2` |
+
+## 9. Rule tuning — suppress TrueNAS noise via direct ES (2026-09-16)
+
+**Context:** SO's API Clients (rule tuning via API) require a **Pro license + Hydra** — unavailable on free tier. Workaround: write suppress overrides directly to the ES detection store, then update the Suricata threshold file.
+
+**Applied:** 16 SIDs suppressed for TrueNAS (192.168.2.148) — BT/P2P + DNS `.to` TLD noise (~249 alerts/day silenced so endpoint events dominate). See `AGENTS.md` for the full technique and SID list.
+
+**Key steps (see AGENTS.md for schema):**
+1. Read ES creds from `/opt/so/conf/elasticsearch/curl.config`
+2. `POST /so-detection/_update/<_id>` with `{"doc":{"so_detection":{"overrides":[<suppress override>]}}}` per SID
+3. Write `suppress gen_id 1, sig_id <sid>, track by_src, ip 192.168.2.148` to `/opt/so/conf/suricata/threshold.conf`
+4. `docker restart so-suricata`
+5. Verify: ES overrides intact, threshold.conf has 16 rules, 0 BT alerts from TrueNAS, suricata healthy
+
+**Backup:** `/tmp/so-detection-backup.json` on the VM.

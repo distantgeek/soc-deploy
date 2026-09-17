@@ -1,0 +1,146 @@
+#!/bin/bash
+# so-capture - capture all traffic to/from a specific endpoint
+# independent of the global Suricata PCAP cap.
+#
+# Accepts an IP address OR a MAC address (MAC is better for DHCP endpoints
+# whose IP changes). MAC uses `ether host <mac>`; IP uses `host <ip>`.
+#
+# Usage:
+#   so-capture start <hostname-or-ip-or-mac> [hours]   Start capture (default 24h retention)
+#   so-capture stop <hostname-or-ip-or-mac>            Stop capture for an endpoint
+#   so-capture stop-all                               Stop all captures
+#   so-capture status                                 Show running captures
+
+set -euo pipefail
+
+PCAP_DIR="/nsm/pcapout"
+INTERFACE="bond0"
+DEFAULT_HOURS=24
+STATE_DIR="/var/run/so-capture"
+
+usage() {
+    cat <<EOF
+Usage:
+  so-capture start <hostname-or-ip-or-mac> [hours]   Start capture (default ${DEFAULT_HOURS}h retention)
+  so-capture stop <hostname-or-ip-or-mac>            Stop capture for an endpoint
+  so-capture stop-all                               Stop all captures
+  so-capture status                                 Show running captures
+EOF
+    exit 1
+}
+
+is_mac() {
+    [[ "$1" =~ ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$ ]]
+}
+
+resolve_target() {
+    local target="$1"
+    if is_mac "$target"; then
+        echo "$target" | tr 'A-F' 'a-f'
+        return 0
+    fi
+    if [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "$target"
+        return 0
+    fi
+    local ip
+    ip=$(getent ahostsv4 "$target" 2>/dev/null | awk 'NR==1{print $1}')
+    if [[ -z "$ip" ]]; then
+        echo "ERROR: could not resolve '$target'" >&2
+        return 1
+    fi
+    echo "$ip"
+}
+
+build_filter() {
+    local target="$1"
+    if is_mac "$target"; then
+        echo "ether host $(echo "$target" | tr 'A-F' 'a-f')"
+    else
+        echo "host $target"
+    fi
+}
+
+cmd_start() {
+    local target="$1"
+    local hours="${2:-$DEFAULT_HOURS}"
+    local resolved
+    resolved=$(resolve_target "$target") || exit 1
+    local outdir="$PCAP_DIR/$resolved"
+    local filter
+    filter=$(build_filter "$target")
+    mkdir -p "$outdir"
+    chown tcpdump:tcpdump "$outdir" 2>/dev/null || chmod 777 "$outdir"
+    if [[ -f "$STATE_DIR/$resolved.pid" ]] && kill -0 "$(cat "$STATE_DIR/$resolved.pid")" 2>/dev/null; then
+        echo "Capture for $resolved already running (PID $(cat "$STATE_DIR/$resolved.pid"))"
+        return 0
+    fi
+    nohup tcpdump -i "$INTERFACE" -nn -G 3600 -W "$hours" -w "$outdir/capture.pcap" "$filter" \
+        >"$outdir/tcpdump.log" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$STATE_DIR/$resolved.pid"
+    echo "$target" > "$STATE_DIR/$resolved.host"
+    echo "Started capture for $target ($resolved) -> $outdir (PID $pid, ${hours}h retention, filter: $filter)"
+}
+
+cmd_stop() {
+    local target="$1"
+    local resolved
+    resolved=$(resolve_target "$target") || exit 1
+    if [[ -f "$STATE_DIR/$resolved.pid" ]]; then
+        local pid
+        pid=$(cat "$STATE_DIR/$resolved.pid")
+        kill "$pid" 2>/dev/null || true
+        rm -f "$STATE_DIR/$resolved.pid" "$STATE_DIR/$resolved.host"
+        echo "Stopped capture for $resolved (PID $pid)"
+    else
+        echo "No capture running for $resolved"
+    fi
+}
+
+cmd_stop_all() {
+    local found=0
+    for pidfile in "$STATE_DIR"/*.pid; do
+        [[ -e "$pidfile" ]] || continue
+        local resolved
+        resolved=$(basename "$pidfile" .pid)
+        local pid
+        pid=$(cat "$pidfile")
+        kill "$pid" 2>/dev/null || true
+        rm -f "$pidfile" "$STATE_DIR/$resolved.host"
+        echo "Stopped capture for $resolved (PID $pid)"
+        found=1
+    done
+    [[ $found -eq 0 ]] && echo "No captures running"
+}
+
+cmd_status() {
+    local found=0
+    for pidfile in "$STATE_DIR"/*.pid; do
+        [[ -e "$pidfile" ]] || continue
+        local resolved
+        resolved=$(basename "$pidfile" .pid)
+        local pid
+        pid=$(cat "$pidfile")
+        local target
+        target=$(cat "$STATE_DIR/$resolved.host" 2>/dev/null || echo "$resolved")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "RUNNING: $target ($resolved) PID $pid -> $PCAP_DIR/$resolved/"
+            found=1
+        else
+            echo "STALE:   $target ($resolved) PID $pid (not running)"
+        fi
+    done
+    [[ $found -eq 0 ]] && echo "No captures running"
+}
+
+[[ $EUID -eq 0 ]] || { echo "ERROR: must run as root (sudo)" >&2; exit 1; }
+mkdir -p "$STATE_DIR"
+
+case "${1:-}" in
+    start)    [[ $# -ge 2 ]] || usage; cmd_start "$2" "${3:-}";;
+    stop)     [[ $# -ge 2 ]] || usage; cmd_stop "$2";;
+    stop-all) cmd_stop_all;;
+    status)   cmd_status;;
+    *)        usage;;
+esac

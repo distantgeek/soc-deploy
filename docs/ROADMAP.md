@@ -4,14 +4,15 @@ Phased build plan for the SOC platform. Each phase has a goal, the components it
 
 > **DIRECTION CHANGE (2026-09-16):** Security Onion's API Clients (programmatic rule tuning) require a paid **Pro license + Hydra** — paywalled on free tier. The platform is migrating to a **fully open-source stack: Malcolm (CISA/INL, Apache 2.0) for network monitoring + Wazuh for host EDR** — zero paywalls, full API. Malcolm bundles the same stack (Arkime + Zeek + Suricata + OpenSearch + Dashboards) pre-integrated. Phase 0 (SO foundation) is complete and its network monitoring carries over. See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md). Phases 1–5 below are reframed around the target stack, not SO.
 
-## Phase M — Migration to Malcolm + Wazuh (DRAFT)
+## Phase M — Migration to Malcolm + Wazuh (IN PROGRESS)
 
 **Goal:** Replace the SO console with a no-paywall stack while keeping the network monitoring already built.
 
-- Deploy **Malcolm** (Arkime + Zeek + Suricata + OpenSearch + Dashboards) on `soc-host`; capture the mirror feed.
-- Deploy **Wazuh** (manager + indexer + dashboard); enroll endpoints (DC01, MEMBERSRV01, Workstation, open-atomic, soc-host).
-- Carry over the TrueNAS suppression; build saved queries mirroring the SO Hunt searches.
-- Decommission SO once the target stack is stable.
+- ✅ **M0** — soc-host VM + mirror NIC (ens19)
+- ✅ **M1** — Malcolm deployed (26 containers healthy, capture verified)
+- ✅ **M2** — Parity confirmed (Zeek/Suricata match SO); SO decommissioned (VM 300 stopped, kept as backup)
+- ⏸️ **M3** — Wazuh deployment **deferred** (~2026-10-01, monthly API usage at 95%)
+- ⏳ **M4–M6** — dashboards, verify, decommission (M6 partially done — SO stopped)
 
 **Prerequisites (M0):**
 - Add a mirror NIC to `soc-host` on PVE `vmbr1`

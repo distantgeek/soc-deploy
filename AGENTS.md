@@ -12,6 +12,8 @@ Notes for future agent sessions working in this repo.
 
 **Unified IdP (Phase 2):** Malcolm's bundled **Keycloak** is the single login for Malcolm, Wazuh dashboard, IRIS, IntelOwl, MISP, OpenSearch Dashboards (OIDC/SAML). Decision 2026-09-16: use Keycloak over Authentik (zero extra deployment). **SSH-key management deferred** until the Malcolm/Wazuh stack is up — then evaluate Authentik (LDAP) vs CA-signed SSH keys.
 
+**M3 (Wazuh) DEFERRED ~2026-10-01:** monthly API usage at 95% (resets ~Oct 1). Do NOT start Wazuh deployment until after the reset. Malcolm M0–M2 are complete; SO is decommissioned (VM 300 stopped, kept as backup). `so-capture` is on soc-host (`/usr/local/sbin/so-capture`, ens19 interface).
+
 ## Open items / revisit later
 
 - **`so-capture` systemd service (DEFERRED 2026-09-16):** the per-endpoint capture helper at `/usr/sbin/so-capture` is on-demand only (start/stop via sudo). Revisit when persistent captures are needed — wrap it in a systemd service (or a `systemd-run --unit=...` wrapper) so captures survive reboots. See `docs/TECH-BRIEF-PHASE0.md` §6.2.

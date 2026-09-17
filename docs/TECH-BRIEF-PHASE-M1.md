@@ -88,13 +88,26 @@ suppress gen_id 1, sig_id 2200121
 
 Enabled `threshold-file` in suricata.yaml, restarted suricata-live. **Re-apply after Malcolm updates** (config regenerates). Verified: 0 Ethertype alerts in the new eve file.
 
-## 5b. `so-capture` MAC support (2026-09-16)
+## 5b. `so-capture` MAC support + relocation (2026-09-16)
 
-`so-capture` (per-endpoint capture on the SO VM) now accepts a **MAC address** — better than IP for DHCP endpoints. MAC uses `ether host <mac>`; IP uses `host <ip>`; hostname resolves to IP. Deployed to `/usr/sbin/so-capture` on the SO VM. Example:
+`so-capture` (per-endpoint capture) now accepts a **MAC address** — better than IP for DHCP endpoints. MAC uses `ether host <mac>`; IP uses `host <ip>`; hostname resolves to IP.
+
+**Relocated to soc-host** (SO decommissioned): `/usr/local/sbin/so-capture`, capturing on `ens19` (the mirror NIC). Example:
 
 ```bash
 sudo so-capture start aa:bb:cc:dd:ee:ff   # captures all traffic to/from that MAC
 ```
+
+## 5c. IPv6 (verified 2026-09-16)
+
+- **IPv6 IS enabled and captured by Zeek** — 265 IPv6 connections, 990 IPv6 DNS entries (link-local `fe80::`)
+- Traffic is link-local control-plane (LLMNR, neighbor discovery, DNS)
+- **Not indexed as Arkime sessions** (0 IPv6 sessions) — link-local/multicast control noise
+- **Global IPv6 (SLAAC) will be captured when it flows** — not blocked, just not present on the mirror currently
+
+## 5d. SO decommissioned (2026-09-16)
+
+VM 300 (soc-onion) **stopped** — kept as backup, not deleted. Reclaim later once Malcolm is proven stable. `so-capture` on SO's disk will be removed when SO is deleted.
 
 ## 6. Next steps
 

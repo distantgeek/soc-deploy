@@ -76,15 +76,19 @@ Malcolm (on soc-host, Docker Compose)
 - Configure capture on the mirror NIC
 - Verify OpenSearch Dashboards + Arkime come up
 
-### M2 — Network data pipeline
-- Point Malcolm at the mirror feed (direct capture or forwarder)
-- Verify Suricata alerts, Zeek logs, Arkime sessions populate the prebuilt dashboards
-- Carry over the TrueNAS suppression (Suricata threshold.conf + rules)
+### M2 — Network data pipeline (DONE 2026-09-16)
+- Point Malcolm at the mirror feed (direct capture or forwarder) — **direct capture on `ens19`**
+- Verify Suricata alerts, Zeek logs, Arkime sessions populate the prebuilt dashboards — **verified**
+- Carry over the TrueNAS suppression (Suricata threshold.conf + rules) — **carried over**
+- **Parity check PASSED:** Zeek conn.log 12,720 (SO) vs 12,748 (Malcolm); dns.log 10,005 vs 10,183; same Suricata signatures. Malcolm is a valid SO replacement.
+- **IPv6:** enabled and captured by Zeek (265 conn, 990 DNS link-local entries). Link-local control traffic (LLMNR/ND) not indexed as Arkime sessions (control noise). Global IPv6 will be captured when it flows.
+- **Suricata decoder noise suppressed:** `SURICATA Ethertype unknown` (SID 2200121) suppressed via threshold config (15,927 → 0 alerts).
 
-### M3 — Deploy Wazuh
+### M3 — Deploy Wazuh (DEFERRED ~2026-10-01)
 - Wazuh manager + indexer + dashboard (bundled)
 - Install Wazuh agents on DC01, MEMBERSRV01, Workstation, open-atomic, soc-host
 - Enable syscollector (inventory), FIM, active response
+- **Deferred:** monthly API usage at 95% (resets ~2026-10-01). Resume after reset.
 
 ### M4 — Dashboards + saved queries
 - Malcolm prebuilt dashboards (network overview, protocols)
@@ -96,9 +100,9 @@ Malcolm (on soc-host, Docker Compose)
 - Confirm the TrueNAS suppression carries over
 - Confirm API access is free on every component
 
-### M6 — Decommission SO
-- Keep SO VM as backup until the target stack is stable
-- Then shut down / reclaim the VM
+### M6 — Decommission SO (DONE 2026-09-16)
+- Keep SO VM as backup until the target stack is stable — **VM 300 stopped, kept as backup (not deleted)**
+- Then shut down / reclaim the VM — **shut down; reclaim later once Malcolm is proven stable**
 
 ## 6. What's lost by dropping SO (and later-phase replacements)
 

@@ -59,9 +59,15 @@ htpasswd -bc /opt/Malcolm/nginx/htpasswd admin '<CONPASS>'
 - **Data flow:** Zeek/Suricata → Logstash (`malcolm-zeek` in=8800, `malcolm-suricata` in=1007) → enrichment → Arkime sessions
 - **Filebeat:** healthy (9.4.2 pin works — no AVX2 crash)
 
-## 5. Known minor issue
+## 5. Optional ingestion features (disabled by design)
 
-- `malcolm_beats_initial` index = 0 — the filebeat-logs `zeek-live` input isn't shipping to the beats pipeline (registry empty). Core Zeek/Suricata data flows via the direct Logstash pipelines instead, so this doesn't block capture. Investigate later (filebeat-logs config/input).
+The `filebeat-nginx`, `filebeat-syslog-tcp`, `filebeat-syslog-udp`, and `filebeat-tcp` instances are **stopped by design** — their autostart is gated by env vars that default to `false`:
+
+- `NGINX_LOG_ACCESS_AND_ERRORS=false` (nginx log collection)
+- `FILEBEAT_SYSLOG_TCP_LISTEN=false` / `FILEBEAT_SYSLOG_UDP_LISTEN=false` (syslog ingestion)
+- `FILEBEAT_TCP_LISTEN=false` (raw TCP input)
+
+These are optional external-ingestion features (they need a source: an nginx instance, syslog senders, TCP senders). Enable them by setting the env var to `true` in the relevant `*-live.env` / `filebeat.env` and recreating the filebeat container. Not a bug or downgrade issue.
 
 ## 6. Next steps
 

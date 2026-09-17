@@ -78,6 +78,24 @@ ports:
 
 **Verified:** all 4 instances RUNNING; nginx logs flowing (`malcolm_beats_nginx_260916` 60 docs); syslog UDP test landed (`malcolm_beats_syslog_260916` 1 doc).
 
+## 5a. Suricata decoder noise suppressed (2026-09-16)
+
+Malcolm's suricata-live fired ~16k `SURICATA Ethertype unknown` (SID `2200121`) alerts — non-IP control-plane frames (STP/LLDP/ARP) on the mirror. Safe to suppress (no security signal; suricata-live only sees the mirror feed). Added to the suricata-live threshold config:
+
+```
+suppress gen_id 1, sig_id 2200121
+```
+
+Enabled `threshold-file` in suricata.yaml, restarted suricata-live. **Re-apply after Malcolm updates** (config regenerates). Verified: 0 Ethertype alerts in the new eve file.
+
+## 5b. `so-capture` MAC support (2026-09-16)
+
+`so-capture` (per-endpoint capture on the SO VM) now accepts a **MAC address** — better than IP for DHCP endpoints. MAC uses `ether host <mac>`; IP uses `host <ip>`; hostname resolves to IP. Deployed to `/usr/sbin/so-capture` on the SO VM. Example:
+
+```bash
+sudo so-capture start aa:bb:cc:dd:ee:ff   # captures all traffic to/from that MAC
+```
+
 ## 6. Next steps
 
 - M2: Overlap with SO for a few days, cross-check Suricata/Zeek parity

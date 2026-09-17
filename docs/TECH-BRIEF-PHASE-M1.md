@@ -59,15 +59,24 @@ htpasswd -bc /opt/Malcolm/nginx/htpasswd admin '<CONPASS>'
 - **Data flow:** Zeek/Suricata → Logstash (`malcolm-zeek` in=8800, `malcolm-suricata` in=1007) → enrichment → Arkime sessions
 - **Filebeat:** healthy (9.4.2 pin works — no AVX2 crash)
 
-## 5. Optional ingestion features (disabled by design)
+## 5. Optional ingestion features (enabled 2026-09-16)
 
-The `filebeat-nginx`, `filebeat-syslog-tcp`, `filebeat-syslog-udp`, and `filebeat-tcp` instances are **stopped by design** — their autostart is gated by env vars that default to `false`:
+The `filebeat-nginx`, `filebeat-syslog-tcp`, `filebeat-syslog-udp`, and `filebeat-tcp` instances are gated by env vars (default `false`). **Enabled for the homelab** (home-network-only threat surface):
 
-- `NGINX_LOG_ACCESS_AND_ERRORS=false` (nginx log collection)
-- `FILEBEAT_SYSLOG_TCP_LISTEN=false` / `FILEBEAT_SYSLOG_UDP_LISTEN=false` (syslog ingestion)
-- `FILEBEAT_TCP_LISTEN=false` (raw TCP input)
+- `nginx.env: NGINX_LOG_ACCESS_AND_ERRORS=true` → filebeat-nginx (watches `/nginx`)
+- `filebeat.env: FILEBEAT_SYSLOG_TCP_LISTEN=true` + `FILEBEAT_SYSLOG_TCP_PORT=514`
+- `filebeat.env: FILEBEAT_SYSLOG_UDP_LISTEN=true` + `FILEBEAT_SYSLOG_UDP_PORT=514`
+- `filebeat.env: FILEBEAT_TCP_LISTEN=true` + `FILEBEAT_TCP_PORT=5045`
 
-These are optional external-ingestion features (they need a source: an nginx instance, syslog senders, TCP senders). Enable them by setting the env var to `true` in the relevant `*-live.env` / `filebeat.env` and recreating the filebeat container. Not a bug or downgrade issue.
+**Ports published to host** (added to `docker-compose.yml` filebeat service — **re-apply after Malcolm updates**):
+```yaml
+ports:
+  - "514:514/udp"
+  - "514:514/tcp"
+  - "5045:5045/tcp"
+```
+
+**Verified:** all 4 instances RUNNING; nginx logs flowing (`malcolm_beats_nginx_260916` 60 docs); syslog UDP test landed (`malcolm_beats_syslog_260916` 1 doc).
 
 ## 6. Next steps
 
